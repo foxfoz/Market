@@ -17,7 +17,15 @@ export async function buildFullCompanyContext(companyId: string, query?: string)
     where: { companyId },
   });
 
-  const knowledgeChunks = query ? await searchKnowledgeChunks(companyId, query, 5) : [];
+  let knowledgeChunks: { content: string }[] = [];
+  if (query) {
+    try {
+      knowledgeChunks = await searchKnowledgeChunks(companyId, query, 5);
+    } catch (error: any) {
+      console.warn("[RAG] Failed to fetch knowledge chunks:", error.message);
+      knowledgeChunks = [];
+    }
+  }
 
   return buildCompanyContext(
     company,

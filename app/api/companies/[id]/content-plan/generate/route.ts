@@ -94,6 +94,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     return NextResponse.json({ entries: saved });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message || "Content plan generation failed" }, { status: 500 });
+    console.error("[ContentPlan] Generation failed:", error);
+    return NextResponse.json(
+      { error: error.message || "Content plan generation failed" },
+      { status: 500 }
+    );
   }
 }

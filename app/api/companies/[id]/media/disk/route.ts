@@ -51,6 +51,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     return NextResponse.json({ files });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message || "Failed to sync Yandex.Disk" }, { status: 500 });
+    console.error("[Yandex.Disk] Sync failed:", error);
+    return NextResponse.json(
+      { error: error.message || "Failed to sync Yandex.Disk" },
+      { status: 500 }
+    );
   }
 }
