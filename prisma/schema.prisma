@@ -1,0 +1,274 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  passwordHash  String
+  name          String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  memberships   Membership[]
+  invitesUsed   Invite[]
+  invitesSent   Invite[] @relation("InviteCreator")
+  chatMessages  ChatMessage[]
+  activityEvents ActivityEvent[]
+}
+
+model Company {
+  id              String   @id @default(cuid())
+  name            String
+  industry        String
+  city            String?
+  description     String?
+  services        String?
+  usp             String?
+  audience        String?
+  competitors     String?
+  goals           Json?    @default("[]")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  memberships     Membership[]
+  invites         Invite[]
+  channels        Channel[]
+  knowledgeItems  KnowledgeItem[]
+  roadmapTasks    RoadmapTask[]
+  contentPlan     ContentPlanEntry[]
+  posts           Post[]
+  mediaFiles      MediaFile[]
+  chatMessages    ChatMessage[]
+  activityEvents  ActivityEvent[]
+  generationLogs  GenerationLog[]
+}
+
+model Membership {
+  id        String   @id @default(cuid())
+  userId    String
+  companyId String
+  role      Role     @default(marketer)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, companyId])
+  @@index([companyId])
+}
+
+enum Role {
+  admin
+  marketer
+  owner
+}
+
+model Invite {
+  id          String      @id @default(cuid())
+  companyId   String
+  token       String      @unique
+  role        Role        @default(marketer)
+  createdById String
+  expiresAt   DateTime
+  usedAt      DateTime?
+  usedById    String?
+  status      InviteStatus @default(active)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  company     Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy   User        @relation("InviteCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  usedBy      User?       @relation(fields: [usedById], references: [id], onDelete: SetNull)
+
+  @@index([companyId])
+  @@index([token])
+}
+
+enum InviteStatus {
+  active
+  used
+  revoked
+}
+
+model ActivityEvent {
+  id        String   @id @default(cuid())
+  companyId String
+  userId    String?
+  type      String
+  payload   Json?    @default("{}")
+  createdAt DateTime @default(now())
+
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, createdAt])
+}
+
+model Channel {
+  id        String  @id @default(cuid())
+  companyId String
+  name      String
+  url       String?
+
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+}
+
+model KnowledgeItem {
+  id        String            @id @default(cuid())
+  companyId String
+  type      KnowledgeType
+  title     String?
+  sourceUrl String?
+  rawText   String?           @db.Text
+  status    KnowledgeStatus   @default(pending)
+  error     String?
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  company   Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  chunks    KnowledgeChunk[]
+
+  @@index([companyId, status])
+}
+
+enum KnowledgeType {
+  link
+  text
+  file
+}
+
+enum KnowledgeStatus {
+  pending
+  processing
+  ready
+  error
+}
+
+model KnowledgeChunk {
+  id        String  @id @default(cuid())
+  itemId    String
+  content   String  @db.Text
+  embedding Unsupported("vector(1536)")?
+
+  item      KnowledgeItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId])
+}
+
+model RoadmapTask {
+  id        String        @id @default(cuid())
+  companyId String
+  category  String
+  title     String
+  reason    String?       @db.Text
+  priority  String        // red / yellow / green
+  status    TaskStatus    @default(todo)
+  sortOrder Int           @default(0)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  company   Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, status])
+  @@index([companyId, category])
+}
+
+enum TaskStatus {
+  todo
+  in_progress
+  done
+}
+
+model ContentPlanEntry {
+  id        String    @id @default(cuid())
+  companyId String
+  date      DateTime
+  channel   String
+  format    String    // post / stories / reels / article
+  topic     String
+  goal      String?   // reach / trust / sale
+  rubric    String?
+  status    String    @default("planned")
+
+  company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  posts     Post[]
+
+  @@index([companyId, date])
+}
+
+model Post {
+  id            String    @id @default(cuid())
+  companyId     String
+  planEntryId   String?
+  channel       String
+  topic         String
+  text          String    @db.Text
+  visualHint    String?   @db.Text
+  status        PostStatus @default(draft)
+  publishedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  company       Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  planEntry     ContentPlanEntry? @relation(fields: [planEntryId], references: [id], onDelete: SetNull)
+}
+
+enum PostStatus {
+  draft
+  published
+}
+
+model MediaFile {
+  id            String  @id @default(cuid())
+  companyId     String
+  diskFolderUrl String
+  name          String
+  mimeType      String?
+  previewUrl    String?
+  size          Int?
+
+  company       Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+}
+
+model ChatMessage {
+  id        String  @id @default(cuid())
+  companyId String
+  userId    String
+  role      ChatRole
+  content   String  @db.Text
+  createdAt DateTime @default(now())
+
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, createdAt])
+}
+
+enum ChatRole {
+  user
+  assistant
+}
+
+model GenerationLog {
+  id                String   @id @default(cuid())
+  companyId         String
+  kind              String
+  promptTokens      Int?
+  completionTokens  Int?
+  model             String?
+  createdAt         DateTime @default(now())
+
+  company           Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, createdAt])
+}
