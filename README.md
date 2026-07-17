@@ -96,7 +96,7 @@ CREATE EXTENSION IF NOT EXISTS vector;
 
 5. Railway автоматически использует:
 - `build`: `next build` (сборка без подключения к БД)
-- `start`: `prisma migrate deploy && next start` (миграции при старте контейнера, когда `DATABASE_URL` уже доступен)
+- `start`: `prisma migrate deploy && node .next/standalone/server.js` (миграции при старте контейнера, затем standalone-сервер Next.js)
 
 Если при первом деплое возникает ошибка `DATABASE_URL not found`, убедитесь, что плагин PostgreSQL добавлен и переменная `DATABASE_URL` появилась в разделе Variables, после чего перезапустите деплой.
 
