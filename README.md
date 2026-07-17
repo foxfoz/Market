@@ -94,7 +94,11 @@ CREATE EXTENSION IF NOT EXISTS vector;
    - `JWT_SECRET` (сгенерируйте случайную строку ≥ 32 символов)
    - `NEXT_PUBLIC_APP_URL` (домен Railway после деплоя)
 
-5. Railway автоматически использует скрипт `build` (`prisma migrate deploy && next build`) и `start` (`next start`).
+5. Railway автоматически использует:
+- `build`: `next build` (сборка без подключения к БД)
+- `start`: `prisma migrate deploy && next start` (миграции при старте контейнера, когда `DATABASE_URL` уже доступен)
+
+Если при первом деплое возникает ошибка `DATABASE_URL not found`, убедитесь, что плагин PostgreSQL добавлен и переменная `DATABASE_URL` появилась в разделе Variables, после чего перезапустите деплой.
 
 ## Структура проекта
 
