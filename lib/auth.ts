@@ -2,30 +2,31 @@ import { jwtVerify, SignJWT } from "jose";
 import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
 
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-  throw new Error("JWT_SECRET is not set");
-}
-
-const secret = new TextEncoder().encode(JWT_SECRET);
-
 export type JwtPayload = {
   userId: string;
   email: string;
   name?: string | null;
 };
 
+function getSecret(): Uint8Array {
+  const JWT_SECRET = process.env.JWT_SECRET;
+  if (!JWT_SECRET) {
+    throw new Error("JWT_SECRET is not set");
+  }
+  return new TextEncoder().encode(JWT_SECRET);
+}
+
 export async function createToken(payload: JwtPayload): Promise<string> {
   return new SignJWT(payload)
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("7d")
-    .sign(secret);
+    .sign(getSecret());
 }
 
 export async function verifyToken(token: string): Promise<JwtPayload | null> {
   try {
-    const { payload } = await jwtVerify(token, secret);
+    const { payload } = await jwtVerify(token, getSecret());
     return payload as unknown as JwtPayload;
   } catch {
     return null;
