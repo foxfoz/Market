@@ -13,6 +13,50 @@ const schema = z.object({
   channels: z.array(z.string()).min(1),
 });
 
+function parseJsonResponse(content: string): any {
+  if (!content || !content.trim()) {
+    throw new Error("AI returned empty response");
+  }
+
+  // Try direct parse first
+  try {
+    return JSON.parse(content);
+  } catch {
+    // ignore
+  }
+
+  // Try to extract JSON from markdown code block
+  const codeBlockMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+  if (codeBlockMatch) {
+    try {
+      return JSON.parse(codeBlockMatch[1]);
+    } catch {
+      // ignore
+    }
+  }
+
+  // Try to find JSON array/object anywhere in the text
+  const arrayMatch = content.match(/\[[\s\S]*\]/);
+  if (arrayMatch) {
+    try {
+      return JSON.parse(arrayMatch[0]);
+    } catch {
+      // ignore
+    }
+  }
+
+  const objectMatch = content.match(/\{[\s\S]*\}/);
+  if (objectMatch) {
+    try {
+      return JSON.parse(objectMatch[0]);
+    } catch {
+      // ignore
+    }
+  }
+
+  throw new Error(`AI response is not valid JSON: ${content.slice(0, 200)}`);
+}
+
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -33,14 +77,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const context = await buildFullCompanyContext(id);
     const result = await generate({
       messages: [
-        { role: "system", content: "Ты экспертный SMM-стратег. Всегда отвечай валидным JSON-массивом." },
+        { role: "system", content: "Ты экспертный SMM-стратег. Всегда отвечай валидным JSON-массивом без markdown и пояснений." },
         { role: "user", content: contentPlanPrompt(context, days, channels) },
       ],
-      response_format: { type: "json_object" },
+      max_tokens: 4000,
     });
 
-    const parsedResult = JSON.parse(result.content);
+    console.log("[ContentPlan] Raw response:", result.content.slice(0, 500));
+
+    const parsedResult = parseJsonResponse(result.content);
     const entries = Array.isArray(parsedResult) ? parsedResult : parsedResult.entries || parsedResult.plan || [];
+
+    if (!Array.isArray(entries) || entries.length === 0) {
+      throw new Error("AI returned empty content plan");
+    }
 
     await prisma.contentPlanEntry.deleteMany({ where: { companyId: id } });
 
