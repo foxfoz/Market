@@ -9,7 +9,7 @@ if (!apiKey) {
   throw new Error("POLZA_AI_API_KEY is not set");
 }
 
-export const ai = new OpenAI({ apiKey, baseURL, timeout: 60 * 1000 });
+export const ai = new OpenAI({ apiKey, baseURL, timeout: 180 * 1000 });
 
 export type ChatMessage = {
   role: "system" | "user" | "assistant";
@@ -36,7 +36,7 @@ export async function generate(options: GenerateOptions, retries = 2): Promise<G
       model,
       messages: options.messages as any,
       temperature: options.temperature ?? 0.7,
-      max_tokens: options.max_tokens ?? 2000,
+      max_tokens: options.max_tokens ?? 4000,
       response_format: options.response_format,
     });
 
